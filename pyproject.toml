@@ -15,9 +15,11 @@ dependencies = [
     "requests>=2.34.2",
 ]
 
-[project.scripts]
-oc-p02-fashion-segmentation = "oc_p02_fashion_segmentation:main"
-
 [build-system]
 requires = ["uv_build>=0.12.18,<0.13.0"]
 build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "ruff>=0.16.9",
+]
