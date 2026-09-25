@@ -17,3 +17,6 @@ wheels/
 
 # IDE
 .idea/
+
+# Data files
+data/*
