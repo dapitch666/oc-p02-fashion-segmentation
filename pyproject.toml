@@ -1,0 +1,23 @@
+[project]
+name = "oc-p02-fashion-segmentation"
+version = "0.1.0"
+description = "Clothing segmentation on fashion images using the SegFormer model via the Hugging Face Inference API"
+readme = "README.md"
+authors = [
+    { name = "Anne Delpla", email = "dapitch666@gmail.com" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "matplotlib>=3.11.2",
+    "numpy>=2.5.3",
+    "pillow>=12.3.0",
+    "python-dotenv>=1.2.3",
+    "requests>=2.34.2",
+]
+
+[project.scripts]
+oc-p02-fashion-segmentation = "oc_p02_fashion_segmentation:main"
+
+[build-system]
+requires = ["uv_build>=0.12.18,<0.13.0"]
+build-backend = "uv_build"
