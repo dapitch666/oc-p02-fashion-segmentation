@@ -3,6 +3,7 @@ import os
 import requests
 
 WHOAMI_URL = "https://huggingface.co/api/whoami-v2"
+API_URL = "https://router.huggingface.co/hf-inference/models/sayeed99/segformer_b3_clothes"
 
 
 class HFAPIError(Exception):
@@ -47,4 +48,10 @@ def whoami(token: str, timeout: float = 5) -> dict:
         raise HFAPIError(
             f"Unexpected error occurred. Status code: {response.status_code}"
         )
+    return response.json()
+
+def query(token: str, filename: str):
+    with open(filename, "rb") as f:
+        data = f.read()
+    response = requests.post(API_URL, headers={"Content-Type": "image/jpeg", **build_auth_headers(token)}, data=data)
     return response.json()
