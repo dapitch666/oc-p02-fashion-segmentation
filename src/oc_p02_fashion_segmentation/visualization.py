@@ -3,7 +3,7 @@ Plotting helpers for images and segmentation masks.
 
 Displays a segmentation mask next to its image or overlaid on it,
 coloured with CLASS_CMAP and labelled with a legend of the classes
-it contains.
+it contains, and compares a predicted mask with its reference mask.
 """
 
 import numpy as np
@@ -39,6 +39,9 @@ CLASS_COLORS = {
 CLASS_CMAP = ListedColormap(
     [CLASS_COLORS[ID_TO_CLASS[class_id]] for class_id in range(NUM_CLASSES)]
 )
+
+# A single vivid colour for the pixels where two masks disagree
+DISAGREEMENT_COLOR = "#e6ff00"  # neon yellow
 
 
 def display_segmentation(image_array, mask_array):
@@ -89,6 +92,108 @@ def display_overlay(image_array, mask_array, alpha=0.6):
     """
     fig, ax = plt.subplots(figsize=(7, 7))
 
+    draw_overlay(ax, image_array, mask_array, alpha)
+
+    ax.legend(
+        handles=class_legend_handles(np.unique(mask_array)),
+        loc="upper left",
+        bbox_to_anchor=(1.02, 1),
+        borderaxespad=0,
+    )
+
+    plt.tight_layout()
+    plt.show()
+
+
+def display_comparison(
+    image_array, reference_mask, predicted_mask, alpha=0.6, image_dim=0.4
+):
+    """
+    Compare a predicted mask with its reference mask, in four panels.
+
+    From left to right: the image, the reference mask and the predicted
+    mask overlaid on it, and the pixels where the two masks disagree,
+    highlighted with DISAGREEMENT_COLOR on a dimmed copy of the image.
+    The share of these pixels is shown in the title of the last panel.
+
+    Args:
+        image_array (np.ndarray): Image to display.
+        reference_mask (np.ndarray): Mask annotated by hand, with class indices.
+        predicted_mask (np.ndarray): Mask predicted by the model, with class indices.
+        alpha (float): Opacity of the masks, from 0 (invisible) to 1 (opaque).
+            Defaults to 0.6, as in display_overlay.
+        image_dim (float): How much the image is dimmed under the
+            disagreement, from 0 (unchanged) to 1 (black). Defaults to 0.4.
+
+    Raises:
+        ValueError: If the two masks do not have the same shape.
+    """
+    if reference_mask.shape != predicted_mask.shape:
+        raise ValueError(
+            f"Masks must have the same shape, got {reference_mask.shape} "
+            f"and {predicted_mask.shape}"
+        )
+
+    disagreement = reference_mask != predicted_mask
+
+    fig, (ax_image, ax_reference, ax_predicted, ax_disagreement) = plt.subplots(
+        1, 4, figsize=(16, 6)
+    )
+
+    ax_image.imshow(image_array, cmap="gray" if image_array.ndim == 2 else None)
+    ax_image.set_title("Image")
+    ax_image.axis("off")
+
+    draw_overlay(ax_reference, image_array, reference_mask, alpha)
+    ax_reference.set_title("Reference mask")
+
+    draw_overlay(ax_predicted, image_array, predicted_mask, alpha)
+    ax_predicted.set_title("Predicted mask")
+
+    ax_disagreement.imshow(image_array, cmap="gray" if image_array.ndim == 2 else None)
+    # A semi-transparent black layer dims the image, whatever its dtype or number of channels
+    ax_disagreement.imshow(
+        np.zeros(disagreement.shape),
+        cmap=ListedColormap(["black"]),
+        alpha=image_dim,
+    )
+    # Masked where the masks agree, so only the disagreeing pixels are coloured.
+    # Opaque, so the colour stays vivid on the dimmed image.
+    ax_disagreement.imshow(
+        np.ma.masked_where(~disagreement, disagreement),
+        cmap=ListedColormap([DISAGREEMENT_COLOR]),
+        interpolation="nearest",
+    )
+    ax_disagreement.set_title(f"Disagreement ({disagreement.mean():.1%} of pixels)")
+    ax_disagreement.axis("off")
+
+    # One shared legend for the classes of both masks
+    legend_handles = class_legend_handles(
+        set(np.unique(reference_mask)) | set(np.unique(predicted_mask))
+    )
+    plt.tight_layout()
+    # Anchored below the axes: the inline backend crops the figure to fit it
+    fig.legend(
+        handles=legend_handles,
+        loc="upper center",
+        bbox_to_anchor=(0.5, 0),
+        ncol=min(len(legend_handles), 9),
+        frameon=False,
+    )
+    plt.show()
+
+
+def draw_overlay(ax, image_array, mask_array, alpha):
+    """
+    Draw a segmentation mask overlaid on its image, on the given axes.
+
+    Args:
+        ax (matplotlib.axes.Axes): Axes to draw on.
+        image_array (np.ndarray): Image to display.
+        mask_array (np.ndarray): Segmentation mask with class indices,
+            same height and width as the image.
+        alpha (float): Opacity of the mask, from 0 (invisible) to 1 (opaque).
+    """
     # A grayscale image is a 2D array: without cmap="gray", imshow would colour it with viridis
     ax.imshow(image_array, cmap="gray" if image_array.ndim == 2 else None)
     ax.imshow(
@@ -100,16 +205,6 @@ def display_overlay(image_array, mask_array, alpha=0.6):
         interpolation="nearest",
     )
     ax.axis("off")
-
-    ax.legend(
-        handles=class_legend_handles(np.unique(mask_array)),
-        loc="upper left",
-        bbox_to_anchor=(1.02, 1),
-        borderaxespad=0,
-    )
-
-    plt.tight_layout()
-    plt.show()
 
 
 def class_legend_handles(class_ids):
