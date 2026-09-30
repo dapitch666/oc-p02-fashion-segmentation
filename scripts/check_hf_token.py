@@ -2,7 +2,7 @@ import sys
 
 from dotenv import load_dotenv
 
-from oc_p02_fashion_segmentation.hf_api import HFAPIError, get_hf_tokens, whoami
+from oc_p02_fashion_segmentation.hf_api import HFAPIError, get_hf_token, whoami
 
 
 def main() -> None:
@@ -11,7 +11,7 @@ def main() -> None:
     load_dotenv()
 
     try:
-        user = whoami(get_hf_tokens())
+        user = whoami(get_hf_token())
     except HFAPIError as e:
         print(e, file=sys.stderr)
         sys.exit(1)

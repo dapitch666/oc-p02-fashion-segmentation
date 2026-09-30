@@ -16,7 +16,7 @@ CLASS_MAPPING = {
     "Left-arm": 14,
     "Right-arm": 15,
     "Bag": 16,
-    "Scarf": 17
+    "Scarf": 17,
 }
 
 ID_TO_CLASS = {v: k for k, v in CLASS_MAPPING.items()}
