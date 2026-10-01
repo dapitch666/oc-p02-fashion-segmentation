@@ -52,7 +52,7 @@ def display_segmentation(image_array, mask_array):
         image_array (np.ndarray): Image to display.
         mask_array (np.ndarray): Segmentation mask with class indices.
     """
-    fig, (ax_image, ax_mask) = plt.subplots(1, 2, figsize=(10, 7))
+    _fig, (ax_image, ax_mask) = plt.subplots(1, 2, figsize=(10, 7))
 
     ax_image.imshow(image_array)
     ax_image.set_title("Image")
@@ -90,7 +90,7 @@ def display_overlay(image_array, mask_array, alpha=0.6):
         alpha (float): Opacity of the mask, from 0 (invisible) to 1 (opaque).
             Defaults to 0.6, as in the Hugging Face widget.
     """
-    fig, ax = plt.subplots(figsize=(7, 7))
+    _fig, ax = plt.subplots(figsize=(7, 7))
 
     draw_overlay(ax, image_array, mask_array, alpha)
 

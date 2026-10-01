@@ -96,7 +96,6 @@ def create_masks(results, width, height):
     return combined_mask
 
 
-
 def save_mask(mask_array: np.ndarray, mask_path: str | Path):
     """
     Save a segmentation mask as a single-channel PNG image.
@@ -124,3 +123,8 @@ def save_mask(mask_array: np.ndarray, mask_path: str | Path):
 
     mask_path.parent.mkdir(parents=True, exist_ok=True)
     Image.fromarray(mask_array.astype(np.uint8)).save(mask_path, format="PNG")
+
+
+def mask_path_for(image_path: Path, output_dir: Path) -> Path:
+    """Name the mask like the dataset masks: image_0.png -> mask_0.png."""
+    return output_dir / image_path.name.replace("image_", "mask_")
