@@ -1,3 +1,4 @@
+import io
 import os
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -5,12 +6,17 @@ from email.utils import parsedate_to_datetime
 from pathlib import Path
 
 import requests
+from PIL import Image
 
 WHOAMI_URL = "https://huggingface.co/api/whoami-v2"
 SEGMENTATION_URL = (
     "https://router.huggingface.co/hf-inference/models/sayeed99/segformer_b3_clothes"
 )
 TRANSIENT_STATUS_CODES = {429, 500, 502, 503, 504}
+# The model preprocessor resizes images to 512 x 512, larger images only cost bandwidth.
+MAX_IMAGE_SIZE = 512
+JPEG_QUALITY = 90
+SENDABLE_FORMATS = {"JPEG", "PNG", "WEBP", "BMP"}
 
 
 class HFAPIError(Exception):
@@ -104,17 +110,23 @@ def whoami(token: str, timeout: float = 5) -> dict:
 
 
 def segment_image(
-    token: str, image_path: str | Path, timeout: float = 30
+    token: str,
+    image_path: str | Path,
+    timeout: float = 30,
+    resize: bool = False,
+    to_jpeg: bool = False,
 ) -> list[dict]:
     """
-    Send a PNG image to the segmentation model and return its predictions.
+    Send an image to the segmentation model and return its predictions.
 
     Same as request_segmentation, without the information on the request.
 
     Args:
         token (str): Hugging Face token.
-        image_path (str | Path): Path to the PNG image to segment.
+        image_path (str | Path): Path to the image to segment.
         timeout (float): Maximum time to wait for the API, in seconds.
+        resize (bool): Downscale the image to fit in 512 x 512 before sending it.
+        to_jpeg (bool): Convert the image to JPEG before sending it.
 
     Returns:
         list[dict]: One dictionary per detected class, with a 'label' key
@@ -128,19 +140,83 @@ def segment_image(
             unexpected status code or a response that is not a list of
             predictions.
     """
-    return request_segmentation(token, image_path, timeout).predictions
+    return request_segmentation(
+        token, image_path, timeout, resize=resize, to_jpeg=to_jpeg
+    ).predictions
+
+
+def prepare_image_for_api(
+    image_path: str | Path,
+    resize: bool = False,
+    to_jpeg: bool = False,
+    max_size: int = MAX_IMAGE_SIZE,
+    quality: int = JPEG_QUALITY,
+) -> tuple[bytes, str]:
+    """
+    Read an image and optionally resize it and convert it to JPEG.
+
+    The format is detected from the file content. With both options off,
+    the file bytes are returned untouched. Smaller payloads reduce the
+    upload bandwidth, but the model resizes images to 512 x 512 anyway
+    and both options slightly change the predictions, see
+    notebooks/04_resize_and_jpeg.ipynb.
+
+    Args:
+        image_path (str | Path): Path to the image.
+        resize (bool): Downscale the image to fit in max_size x max_size,
+            keeping the aspect ratio. Images are never enlarged. The format
+            is kept, so a PNG stays a lossless PNG, unless to_jpeg is set.
+        to_jpeg (bool): Re-encode the image as JPEG, which is lossy.
+        max_size (int): Maximum width and height when resizing, in pixels.
+        quality (int): JPEG and WebP quality, from 1 to 95.
+
+    Returns:
+        tuple[bytes, str]: The image bytes and their MIME type, for example
+            'image/png'.
+
+    Raises:
+        OSError: If the file cannot be read or is not an image.
+    """
+    with Image.open(image_path) as image:
+        image_format = "JPEG" if to_jpeg else image.format
+        if image_format not in SENDABLE_FORMATS:
+            image_format = "PNG"  # Lossless fallback, e.g. for GIF or TIFF.
+        needs_resize = resize and max(image.size) > max_size
+        if image_format == image.format and not needs_resize:
+            return Path(image_path).read_bytes(), Image.MIME[image_format]
+
+        if image.mode not in ("RGB", "RGBA", "L"):
+            has_alpha = "A" in image.mode or "transparency" in image.info
+            image = image.convert("RGBA" if has_alpha else "RGB")
+        if image_format in ("JPEG", "BMP") and image.mode == "RGBA":
+            image = image.convert("RGB")
+        if needs_resize:
+            image.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
+        buffer = io.BytesIO()
+        image.save(buffer, format=image_format, quality=quality)
+    return buffer.getvalue(), Image.MIME[image_format]
 
 
 def request_segmentation(
-    token: str, image_path: str | Path, timeout: float = 30
+    token: str,
+    image_path: str | Path,
+    timeout: float = 30,
+    resize: bool = False,
+    to_jpeg: bool = False,
 ) -> SegmentationResult:
     """
-    Send a PNG image to the segmentation model.
+    Send an image to the segmentation model.
+
+    The image is sent as is, with its format detected from the file content,
+    unless an option is set. The returned masks have the size of the sent
+    image, which differs from the original when resize is set.
 
     Args:
         token (str): Hugging Face token.
-        image_path (str | Path): Path to the PNG image to segment.
+        image_path (str | Path): Path to the image to segment.
         timeout (float): Maximum time to wait for the API, in seconds.
+        resize (bool): Downscale the image to fit in 512 x 512 before sending it.
+        to_jpeg (bool): Convert the image to JPEG before sending it.
 
     Returns:
         SegmentationResult: The predictions, with the request time, the
@@ -154,11 +230,16 @@ def request_segmentation(
             unexpected status code or a response that is not a list of
             predictions.
     """
-    image_bytes = Path(image_path).read_bytes()
+    try:
+        image_bytes, content_type = prepare_image_for_api(
+            image_path, resize=resize, to_jpeg=to_jpeg
+        )
+    except OSError as e:
+        raise HFAPIError(f"Could not read or encode the image: {e}") from e
     try:
         response = requests.post(
             SEGMENTATION_URL,
-            headers={"Content-Type": "image/png", **build_auth_headers(token)},
+            headers={"Content-Type": content_type, **build_auth_headers(token)},
             data=image_bytes,
             timeout=timeout,
         )

@@ -87,6 +87,18 @@ def parse_args() -> argparse.Namespace:
         default=30.0,
         help="Timeout of each API request in seconds (default: 30).",
     )
+    parser.add_argument(
+        "--resize",
+        action="store_true",
+        help="Downscale images to fit in 512 x 512 before sending them. "
+        "Reduces the payload, but may lose details.",
+    )
+    parser.add_argument(
+        "--jpeg",
+        action="store_true",
+        help="Convert images to JPEG before sending them. Smaller payload, but "
+        "lowers the IoU more than --resize.",
+    )
     return parser.parse_args()
 
 
@@ -110,6 +122,8 @@ def segment_with_retries(
     max_retries: int,
     base_delay: float,
     timeout: float,
+    resize: bool = False,
+    to_jpeg: bool = False,
 ) -> tuple[SegmentationResult, list[str]]:
     """
     Call request_segmentation, retrying on HFTransientError.
@@ -126,7 +140,9 @@ def segment_with_retries(
     attempt_errors = []
     for retries in range(max_retries + 1):
         try:
-            result = request_segmentation(token, image_path, timeout=timeout)
+            result = request_segmentation(
+                token, image_path, timeout=timeout, resize=resize, to_jpeg=to_jpeg
+            )
             return result, attempt_errors
         except HFAPIError as e:
             attempt_errors.append(describe_error(e))
@@ -150,6 +166,8 @@ def process_image(
     base_delay: float,
     timeout: float,
     run_id: str,
+    resize: bool = False,
+    to_jpeg: bool = False,
 ) -> tuple[dict, Exception | None]:
     """Segment one image, save its mask and return the log row and the error."""
     width, height = get_image_dimensions(image_path)
@@ -166,7 +184,7 @@ def process_image(
     start = time.perf_counter()
     try:
         result, attempt_errors = segment_with_retries(
-            token, image_path, max_retries, base_delay, timeout
+            token, image_path, max_retries, base_delay, timeout, resize, to_jpeg
         )
         row["api_time_s"] = round(result.api_time_s, 3)
         row["request_id"] = result.request_id
@@ -225,6 +243,8 @@ def main() -> None:
                 args.base_delay,
                 args.timeout,
                 run_id,
+                args.resize,
+                args.jpeg,
             )
             writer.writerow(row)
             log.flush()  # Keep the log up to date if the script is interrupted.
