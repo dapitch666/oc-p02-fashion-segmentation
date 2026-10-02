@@ -1,0 +1,14 @@
+repos:
+  - repo: https://github.com/kynan/nbstripout
+    rev: 0.9.1
+    hooks:
+      - id: nbstripout
+        args: [--keep-id]
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.9  # Same version as in uv.lock
+    hooks:
+      - id: ruff-check
+        types_or: [python, pyi, jupyter]
+      - id: ruff-format
+        types_or: [python, pyi, jupyter]
