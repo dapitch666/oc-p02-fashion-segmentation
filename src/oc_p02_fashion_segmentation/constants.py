@@ -21,3 +21,27 @@ CLASS_MAPPING = {
 
 ID_TO_CLASS = {v: k for k, v in CLASS_MAPPING.items()}
 NUM_CLASSES = len(CLASS_MAPPING)
+
+CLOTHING_CLASSES = {
+    "Upper-clothes",
+    "Skirt",
+    "Pants",
+    "Dress",
+}
+
+ACCESSORY_CLASSES = {
+    "Hat",
+    "Sunglasses",
+    "Belt",
+    "Bag",
+    "Scarf",
+}
+
+SHOE_CLASSES = {
+    "Left-shoe",
+    "Right-shoe",
+}
+
+CLOTHING_CLASS_IDS = sorted(CLASS_MAPPING[name] for name in CLOTHING_CLASSES)
+ACCESSORY_CLASS_IDS = sorted(CLASS_MAPPING[name] for name in ACCESSORY_CLASSES)
+SHOE_CLASS_IDS = sorted(CLASS_MAPPING[name] for name in SHOE_CLASSES)
