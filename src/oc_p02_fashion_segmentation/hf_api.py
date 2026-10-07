@@ -37,6 +37,10 @@ class HFAuthError(HFAPIError):
     """Raised when the token is missing, invalid or not allowed. Retrying is useless."""
 
 
+class HFCreditsError(HFAPIError):
+    """Raised when the account has no remaining credits (402). Retrying is useless."""
+
+
 class HFTransientError(HFAPIError):
     """
     Raised on a temporary failure (timeout, connection error, rate limit,
@@ -134,6 +138,7 @@ def segment_image(
 
     Raises:
         HFAuthError: If the token is invalid or not allowed.
+        HFCreditsError: If the account has no remaining credits.
         HFTransientError: If the request times out, cannot connect, or the
             API is rate limited or temporarily unavailable.
         HFAPIError: If the request fails for another reason, returns an
@@ -224,6 +229,7 @@ def request_segmentation(
 
     Raises:
         HFAuthError: If the token is invalid or not allowed.
+        HFCreditsError: If the account has no remaining credits.
         HFTransientError: If the request times out, cannot connect, or the
             API is rate limited or temporarily unavailable.
         HFAPIError: If the request fails for another reason, returns an
@@ -300,6 +306,11 @@ def check_status_code(response: requests.Response) -> None:
     if response.status_code == 403:
         raise HFAuthError(
             f"Hugging Face token is not allowed. Status code: {response.status_code}",
+            response.status_code,
+        )
+    if response.status_code == 402:
+        raise HFCreditsError(
+            f"You have no remaining credits. Status code: {response.status_code}",
             response.status_code,
         )
     if response.status_code == 429:

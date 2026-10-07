@@ -22,6 +22,7 @@ from dotenv import load_dotenv
 from oc_p02_fashion_segmentation.hf_api import (
     HFAPIError,
     HFAuthError,
+    HFCreditsError,
     HFTransientError,
     SegmentationResult,
     get_hf_token,
@@ -252,6 +253,9 @@ def main() -> None:
             if isinstance(error, HFAuthError):
                 # Every following request would fail the same way.
                 print(f"Authentication error, stopping: {error}", file=sys.stderr)
+                sys.exit(1)
+            if isinstance(error, HFCreditsError):
+                print(f"No remaining credits, stopping: {error}", file=sys.stderr)
                 sys.exit(1)
 
             if row["status"] == "success":
