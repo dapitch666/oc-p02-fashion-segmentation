@@ -285,7 +285,7 @@ def parse_retry_after(response: requests.Response) -> float | None:
         pass
     try:
         retry_at = parsedate_to_datetime(value)
-    except TypeError, ValueError:
+    except (TypeError, ValueError):
         return None
     return max(0.0, (retry_at - datetime.now(UTC)).total_seconds())
 

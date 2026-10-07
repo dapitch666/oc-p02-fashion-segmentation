@@ -18,7 +18,7 @@ It also estimates the cost of running it at scale (500,000 images over 30 days).
 
 ## Requirements
 
-- Python 3.14+
+- Python 3.12+
 - [uv](https://docs.astral.sh/uv/)
 - A Hugging Face API token, provided through the `HF_TOKEN` environment variable
 
@@ -45,7 +45,7 @@ uv run python scripts/check_hf_token.py
 ## Data
 
 The test set was provided by OpenClassrooms with the project brief (archive
-`top_influenceurs_2024`): 50 images of 400 x 600 pixels, each with a
+`top_influenceurs_2024`): 50 images, mostly 400 x 600 pixels, each with a
 hand-annotated reference mask. The images are not redistributed in this
 repository (`data/` is git-ignored). To run the code, extract the archive into
 `data/input/`, so that you get:
